@@ -1,3 +1,11 @@
+import sqlite3
+db = sqlite3.connect("database.db")
+cursor = db.cursor()
+
+
+
+
+# ---------------------------------- FUNCTIONS ------------------------------------- #
 def addUser(user,role):
 	cursor.execute("INSERT INTO users(user, role) VALUES(?,?)", (user, role))
 

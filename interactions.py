@@ -6,6 +6,9 @@ cursor = db.cursor()
 
 
 # ---------------------------------- FUNCTIONS ------------------------------------- #
+def listRoles():
+	cursor.execute("SELECT * FROM roles")
+
 def addUser(user,role):
 	cursor.execute("INSERT INTO users(user, role) VALUES(?,?)", (user, role))
 

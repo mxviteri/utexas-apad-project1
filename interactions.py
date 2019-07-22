@@ -18,6 +18,21 @@ def addVenue(name,operating):
 def addEvent(name,venue,time):
 	cursor.execute("INSERT INTO events(name, venue, time) VALUES(?,?,?)", (name, venue, time))
 
+def getTimeslotsByVenue(venue, time):
+	timeslots = searchTimeslots(time)
+	return timeslots.get(venue, [])
+
+def getVenuesByTimeslot(time):
+	timeslots = searchTimeslots(time)
+	time = roundHour(time)
+	venues = []
+
+	for venue in timeslots:
+		if time in timeslots[venue]:
+			venues.append(venue)
+	
+	return venues
+
 def searchTimeslots(time):
 	cursor.execute(
 		"""

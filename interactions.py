@@ -6,17 +6,79 @@ db = sqlite3.connect("database.db")
 cursor = db.cursor()
 
 # ---------------------------------- FUNCTIONS ------------------------------------- #
-def listRoles():
-	cursor.execute("SELECT * FROM roles")
+def findUser(name):
+	cursor.execute(
+		"""
+		SELECT * FROM
+			users
+		WHERE
+			user = ?
+		""",
+		(name,)
+	)
+	user = cursor.fetchone()
+	if user:
+		return user
+	else:
+		return None
 
-def addUser(user,role):
-	cursor.execute("INSERT INTO users(user, role) VALUES(?,?)", (user, role))
+def addUser(user, role):
+	found = findUser(user)
+	if found is None:
+		cursor.execute(
+			"""
+			INSERT INTO
+				users(user, role)
+			VALUES(?, ?)
+			""",
+			(user, role)
+		)
+		db.commit()
+		print("User " + user + " has been added successfully.")
+	else:
+		print("User not added. Username taken.")
 
-def addVenue(name,operating):
-	cursor.execute("INSERT INTO venues(name, operating) VALUES(?,?)", (name, operating))
+def findVenue(name):
+	cursor.execute(
+		"""
+		SELECT * FROM
+			venues
+		WHERE
+			name = ?
+		""",
+		(name,)
+	)
+	venue = cursor.fetchone()
+	if venue:
+		return venue
+	else:
+		return None
 
-def addEvent(name,venue,time):
-	cursor.execute("INSERT INTO events(name, venue, time) VALUES(?,?,?)", (name, venue, time))
+def addVenue(name, open, close):
+	found = findVenue(name)
+	if found is None:
+		cursor.execute(
+			"""
+			INSERT INTO 
+				venues(name, open, close)
+			VALUES(?, ?, ?)
+			""",
+			(name, open, close)
+		)
+		db.commit()
+		print("Venue " + name + " has been added succesfully.")
+	else:
+		print("Failed to add venue. A venue with the same name already exists.")
+
+def addEvent(name, venue, time):
+	cursor.execute(
+		"""
+		INSERT INTO
+			events(name, venue, time)
+		VALUES(?,?,?)
+		""",
+		(name, venue, time)
+	)
 
 def getTimeslotsByVenue(venue, time):
 	timeslots = searchTimeslots(time)

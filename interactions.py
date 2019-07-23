@@ -70,10 +70,10 @@ def addVenue(name, open, close):
 	else:
 		print("Failed to add venue. A venue with the same name already exists.")
 
-def addEvent(name, venue, time):
+def addEvent(name, venue, time, capacity):
 	cursor.execute(
 		"""
-		INSERT INTO events(name, venue, time)
+		INSERT INTO events(name, venue, time, capacity)
 		VALUES(?,?,?)
 		""",
 		(name, venue, time)

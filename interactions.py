@@ -9,15 +9,16 @@ cursor = db.cursor()
 def findUser(name):
 	cursor.execute(
 		"""
-		SELECT * FROM
-			users
-		WHERE
-			user = ?
+		SELECT * 
+		FROM users
+		WHERE user = ?
 		""",
 		(name,)
 	)
-	user = cursor.fetchone()
-	if user:
+	result = cursor.fetchone()
+	if result:
+		UserRecord = namedtuple("UserRecord", "id, name, role, event")
+		user = UserRecord._make(result)	
 		return user
 	else:
 		return None
@@ -27,8 +28,7 @@ def addUser(user, role):
 	if found is None:
 		cursor.execute(
 			"""
-			INSERT INTO
-				users(user, role)
+			INSERT INTO users(user, role)
 			VALUES(?, ?)
 			""",
 			(user, role)
@@ -41,15 +41,16 @@ def addUser(user, role):
 def findVenue(name):
 	cursor.execute(
 		"""
-		SELECT * FROM
-			venues
-		WHERE
-			name = ?
+		SELECT * 
+		FROM venues
+		WHERE name = ?
 		""",
 		(name,)
 	)
-	venue = cursor.fetchone()
-	if venue:
+	result = cursor.fetchone()
+	if result:
+		VenueRecord = namedtuple("VenueRecord", "id, name, openTime, closeTime")
+		venue = VenueRecord._make(result)
 		return venue
 	else:
 		return None
@@ -59,8 +60,7 @@ def addVenue(name, open, close):
 	if found is None:
 		cursor.execute(
 			"""
-			INSERT INTO 
-				venues(name, open, close)
+			INSERT INTO venues(name, open, close)
 			VALUES(?, ?, ?)
 			""",
 			(name, open, close)
@@ -73,11 +73,19 @@ def addVenue(name, open, close):
 def addEvent(name, venue, time):
 	cursor.execute(
 		"""
-		INSERT INTO
-			events(name, venue, time)
+		INSERT INTO events(name, venue, time)
 		VALUES(?,?,?)
 		""",
 		(name, venue, time)
+	)
+
+def removeEvent(name):
+	cursor.execute(
+		"""
+		DELETE FROM events
+		WHERE name = ?
+		""",
+		(name,)
 	)
 
 def getTimeslotsByVenue(venue, time):
@@ -99,17 +107,13 @@ def searchTimeslots(time):
 	cursor.execute(
 		"""
 		SELECT
-			v.*,
-			GROUP_CONCAT(e.time) as reserved
-		FROM venues v
-			JOIN events e
-			ON v.id = e.venue
+			*
+		FROM venues
 		WHERE ? BETWEEN open AND close
-		GROUP BY (v.id)
 		""", (time,)
 	)
 
-	VenueRecord = namedtuple('VenueRecord','id, name, open, close, reserved')
+	VenueRecord = namedtuple('VenueRecord','id, name, open, close')
 	all = map(VenueRecord._make, cursor.fetchall())
 	timeslots = {}
 
@@ -123,8 +127,7 @@ def searchTimeslots(time):
 		i = 0
 		while i < diff:
 			slot = (now + timedelta(hours=i)).strftime("%H:%M:%S")
-			if slot not in row.reserved.split(','):
-				timeslots[venue].append(slot)
+			timeslots[venue].append(slot)
 			i += 1
 	
 	return timeslots
@@ -136,3 +139,65 @@ def roundHour(time):
 
 	dt = start + timedelta(hours=1) if dt >= half_hour else start
 	return dt.strftime("%H:%M:%S")
+
+def listEventsByTime(venue, time, showAll=False):
+	rounded = roundHour(time)
+
+	sql = """
+		SELECT e.* 
+		FROM events e
+		JOIN venues v ON e.venue = v.id
+		WHERE v.name = ?
+	"""
+	params = (venue,)
+
+	if not showAll:
+		sql = sql + " AND time = ?"
+		params = (venue, rounded)
+
+	cursor.execute(sql, params)
+	
+	EventRecord = namedtuple('EventRecord','id, name, venue, time, capacity')
+	all = map(EventRecord._make, cursor.fetchall())
+	events = []
+
+	for row in all:
+		events.append(row.name)
+
+	return events
+
+def currentParticipantTotal(event):
+	cursor.execute(
+		"""
+		SELECT COUNT(u.event) as total, e.capacity
+		FROM users u
+		JOIN events e ON u.event = e.id
+		WHERE e.name = ?
+		GROUP BY e.id
+		""", (event,)
+	)
+	TotalRecord = namedtuple('TotalRecord','total, capacity')
+	result = cursor.fetchone()
+
+	if not result:
+		raise Exception('The event: {}, could not be found'.format(event))
+
+	record = TotalRecord._make(result)
+	return (record.total, record.capacity)
+
+def joinEvent(user, event):
+	(total, capacity) = currentParticipantTotal(event)
+
+	if total >= capacity:
+		raise Exception('The event: {}, is at capacity'.format(event))
+
+	cursor.execute(
+	"""
+	UPDATE users
+	SET event = (SELECT id FROM events WHERE name = ?)
+	WHERE user = ?
+	""", (event, user)
+	)
+	db.commit()
+
+	return "User added successfully"

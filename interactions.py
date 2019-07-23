@@ -149,7 +149,7 @@ def listEventsByTime(venue, time, showAll=False):
 
 	cursor.execute(sql, params)
 	
-	EventRecord = namedtuple('EventRecord','id, name, venue, time')
+	EventRecord = namedtuple('EventRecord','id, name, venue, time, capacity')
 	all = map(EventRecord._make, cursor.fetchall())
 	events = []
 
@@ -158,3 +158,38 @@ def listEventsByTime(venue, time, showAll=False):
 
 	return events
 
+def currentParticipantTotal(event):
+	cursor.execute(
+		"""
+		SELECT COUNT(u.event) as total, e.capacity
+		FROM users u
+		JOIN events e ON u.event = e.id
+		WHERE e.name = ?
+		GROUP BY e.id
+		""", (event,)
+	)
+	TotalRecord = namedtuple('TotalRecord','total, capacity')
+	result = cursor.fetchone()
+
+	if not result:
+		raise Exception('The event: {}, could not be found'.format(event))
+
+	record = TotalRecord._make(result)
+	return (record.total, record.capacity)
+
+def joinEvent(user, event):
+	(total, capacity) = currentParticipantTotal(event)
+
+	if total >= capacity:
+		raise Exception('The event: {}, is at capacity'.format(event))
+
+	cursor.execute(
+	"""
+	UPDATE users
+	SET event = (SELECT id FROM events WHERE name = ?)
+	WHERE user = ?
+	""", (event, user)
+	)
+	db.commit()
+
+	return "User added successfully"

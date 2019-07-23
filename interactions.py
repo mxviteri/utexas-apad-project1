@@ -99,17 +99,13 @@ def searchTimeslots(time):
 	cursor.execute(
 		"""
 		SELECT
-			v.*,
-			GROUP_CONCAT(e.time) as reserved
-		FROM venues v
-			JOIN events e
-			ON v.id = e.venue
+			*
+		FROM venues
 		WHERE ? BETWEEN open AND close
-		GROUP BY (v.id)
 		""", (time,)
 	)
 
-	VenueRecord = namedtuple('VenueRecord','id, name, open, close, reserved')
+	VenueRecord = namedtuple('VenueRecord','id, name, open, close')
 	all = map(VenueRecord._make, cursor.fetchall())
 	timeslots = {}
 
@@ -123,8 +119,7 @@ def searchTimeslots(time):
 		i = 0
 		while i < diff:
 			slot = (now + timedelta(hours=i)).strftime("%H:%M:%S")
-			if slot not in row.reserved.split(','):
-				timeslots[venue].append(slot)
+			timeslots[venue].append(slot)
 			i += 1
 	
 	return timeslots
@@ -136,3 +131,30 @@ def roundHour(time):
 
 	dt = start + timedelta(hours=1) if dt >= half_hour else start
 	return dt.strftime("%H:%M:%S")
+
+def listEventsByTime(venue, time, showAll=False):
+	rounded = roundHour(time)
+
+	sql = """
+		SELECT e.* 
+		FROM events e
+		JOIN venues v ON e.venue = v.id
+		WHERE v.name = ?
+	"""
+	params = (venue,)
+
+	if not showAll:
+		sql = sql + " AND time = ?"
+		params = (venue, rounded)
+
+	cursor.execute(sql, params)
+	
+	EventRecord = namedtuple('EventRecord','id, name, venue, time')
+	all = map(EventRecord._make, cursor.fetchall())
+	events = []
+
+	for row in all:
+		events.append(row.name)
+
+	return events
+

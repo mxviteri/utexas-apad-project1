@@ -23,6 +23,7 @@ def findUser(name):
 	else:
 		return None
 
+
 def addUser(user, role):
 	found = findUser(user)
 	if found is None:
@@ -37,6 +38,7 @@ def addUser(user, role):
 		print("User " + user + " has been added successfully.")
 	else:
 		print("User not added. Username taken.")
+
 
 def findVenue(name):
 	cursor.execute(
@@ -55,6 +57,7 @@ def findVenue(name):
 	else:
 		return None
 
+
 def addVenue(name, open, close):
 	found = findVenue(name)
 	if found is None:
@@ -70,6 +73,7 @@ def addVenue(name, open, close):
 	else:
 		print("Failed to add venue. A venue with the same name already exists.")
 
+
 def addEvent(name, venue, time, capacity):
 	cursor.execute(
 		"""
@@ -78,6 +82,7 @@ def addEvent(name, venue, time, capacity):
 		""",
 		(name, venue, time)
 	)
+
 
 def removeEvent(name):
 	cursor.execute(
@@ -88,9 +93,11 @@ def removeEvent(name):
 		(name,)
 	)
 
+
 def getTimeslotsByVenue(venue, time):
 	timeslots = searchTimeslots(time)
 	return timeslots.get(venue, [])
+
 
 def getVenuesByTimeslot(time):
 	timeslots = searchTimeslots(time)
@@ -102,6 +109,7 @@ def getVenuesByTimeslot(time):
 			venues.append(venue)
 	
 	return venues
+
 
 def searchTimeslots(time):
 	cursor.execute(
@@ -132,6 +140,7 @@ def searchTimeslots(time):
 	
 	return timeslots
 
+
 def roundHour(time):
 	dt = datetime.strptime(time, "%H:%M:%S")
 	start = dt.replace(minute=0, second=0, microsecond=0)
@@ -140,24 +149,22 @@ def roundHour(time):
 	dt = start + timedelta(hours=1) if dt >= half_hour else start
 	return dt.strftime("%H:%M:%S")
 
-def listEventsByTime(venue, time, showAll=False):
+
+def listEventsByTime(venue, dt):	
+	[date, time] = str(dt).split(' ')
 	rounded = roundHour(time)
 
-	sql = """
-		SELECT e.* 
-		FROM events e
-		JOIN venues v ON e.venue = v.id
-		WHERE v.name = ?
-	"""
-	params = (venue,)
-
-	if not showAll:
-		sql = sql + " AND time = ?"
-		params = (venue, rounded)
-
-	cursor.execute(sql, params)
+	cursor.execute(
+		"""
+			SELECT e.* 
+			FROM events e
+			JOIN venues v ON e.venue = v.id
+			WHERE v.name = ?
+			AND e.date = ?
+			AND e.time = ?
+		""", (venue, date, rounded))
 	
-	EventRecord = namedtuple('EventRecord','id, name, venue, time, capacity')
+	EventRecord = namedtuple('EventRecord','id, name, venue, date, time, capacity')
 	all = map(EventRecord._make, cursor.fetchall())
 	events = []
 
@@ -166,12 +173,13 @@ def listEventsByTime(venue, time, showAll=False):
 
 	return events
 
+
 def currentParticipantTotal(event):
 	cursor.execute(
 		"""
 		SELECT COUNT(u.event) as total, e.capacity
-		FROM users u
-		JOIN events e ON u.event = e.id
+		FROM events e
+		LEFT JOIN users u on u.event = e.id
 		WHERE e.name = ?
 		GROUP BY e.id
 		""", (event,)
@@ -184,6 +192,7 @@ def currentParticipantTotal(event):
 
 	record = TotalRecord._make(result)
 	return (record.total, record.capacity)
+
 
 def joinEvent(user, event):
 	(total, capacity) = currentParticipantTotal(event)

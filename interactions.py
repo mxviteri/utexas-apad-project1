@@ -6,6 +6,27 @@ db = sqlite3.connect("database.db")
 cursor = db.cursor()
 
 # ---------------------------------- FUNCTIONS ------------------------------------- #
+def isAdmin(name):
+	cursor.execute(
+		"""
+		SELECT name
+		FROM roles
+		JOIN users
+		ON roles.id = users.role
+		WHERE users.user = ?
+		""",
+		(name,)
+	)
+	result = cursor.fetchone()
+	if result:
+		role = result[0]
+		if role == "admin":
+			return True
+		else:
+			return False
+	else:
+		return None
+
 def findUser(name):
 	cursor.execute(
 		"""
@@ -23,21 +44,36 @@ def findUser(name):
 	else:
 		return None
 
-
-def addUser(user, role):
-	found = findUser(user)
-	if found is None:
-		cursor.execute(
-			"""
-			INSERT INTO users(user, role)
-			VALUES(?, ?)
-			""",
-			(user, role)
-		)
-		db.commit()
-		print("User " + user + " has been added successfully.")
+def addUser(name, role, user):
+	if isAdmin(user):
+		found = findUser(name)
+		if found is None:
+			cursor.execute(
+				"""
+				SELECT id
+				FROM roles
+				WHERE name = ?
+				""",
+				(role,)
+			)
+			result = cursor.fetchone()
+			if result:
+				roleNum = result[0]
+				cursor.execute(
+					"""
+					INSERT INTO users(user, role)
+					VALUES(?, ?)
+					""",
+					(name, roleNum)
+				)
+				db.commit()
+				print("User " + name + " has been added successfully.")
+			else:
+				print("Not a valid role.")
+		else:
+			print("User not added. Username taken.")
 	else:
-		print("User not added. Username taken.")
+		print("You do not have the proper permissions.")
 
 
 def findVenue(name):
@@ -57,30 +93,31 @@ def findVenue(name):
 	else:
 		return None
 
-
-def addVenue(name, open, close):
-	found = findVenue(name)
-	if found is None:
-		cursor.execute(
-			"""
-			INSERT INTO venues(name, open, close)
-			VALUES(?, ?, ?)
-			""",
-			(name, open, close)
-		)
-		db.commit()
-		print("Venue " + name + " has been added succesfully.")
+def addVenue(name, open, close, user):
+	if isAdmin(user):
+		found = findVenue(name)
+		if found is None:
+			cursor.execute(
+				"""
+				INSERT INTO venues(name, open, close)
+				VALUES(?, ?, ?)
+				""",
+				(name, open, close)
+			)
+			db.commit()
+			print("Venue " + name + " has been added succesfully.")
+		else:
+			print("Failed to add venue. A venue with the same name already exists.")
 	else:
-		print("Failed to add venue. A venue with the same name already exists.")
+		print("You do not have the proper permissions.")
 
-
-def addEvent(name, venue, time, capacity):
+def addEvent(name, venue, date, time, capacity):
 	cursor.execute(
 		"""
-		INSERT INTO events(name, venue, time, capacity)
-		VALUES(?,?,?)
+		INSERT INTO events(name, venue, date, time, capacity)
+		VALUES(?,?,?,?)
 		""",
-		(name, venue, time)
+		(name, venue, date, time, capacity)
 	)
 
 

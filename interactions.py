@@ -66,8 +66,13 @@ def addUser(name, role, user):
 					""",
 					(name, roleNum)
 				)
-				db.commit()
-				print("User " + name + " has been added successfully.")
+				rows = cursor.rowcount
+				if rows == 1:
+					db.commit()
+					print("User '" + name + "' has been added succesfully.")
+				else:
+					print("User not added")
+					db.rollback()
 			else:
 				print("Not a valid role.")
 		else:
@@ -104,8 +109,13 @@ def addVenue(name, open, close, user):
 				""",
 				(name, open, close)
 			)
-			db.commit()
-			print("Venue " + name + " has been added succesfully.")
+			rows = cursor.rowcount
+			if rows == 1:
+				db.commit()
+				print("Venue '" + name + "' has been added succesfully.")
+			else:
+				print("Venue not added")
+				db.rollback()
 		else:
 			print("Failed to add venue. A venue with the same name already exists.")
 	else:
@@ -131,37 +141,78 @@ def addEvent(name, venue, date, time, capacity):
 			(name, venueID, date, time, capacity)
 		)
 		db.commit()
+		rows = cursor.rowcount
+		if rows == 1:
+			db.commit()
+			print("Event '" + name + "' at venue '" + venue + "' added")
+		else:
+			print("Event not added")
+			db.rollback()
 	else:
 		print("Venue not found")
 
 
-def removeEvent(name, user):
-	if isAdmin(user):
-		cursor.execute(
-			"""
-			DELETE FROM events
-			WHERE name = ?
-			""",
-			(name,)
-		)
-		db.commit()
-	else:
-		print("You do not have the proper permissions to do that.")
-
-def findEvent(name):
+def removeEvent(name, venue, user):
 	cursor.execute(
 		"""
-		SELECT * 
-		FROM events
+		SELECT id
+		FROM venues
 		WHERE name = ?
 		""",
-		(name,)
+		(venue,)
 	)
 	result = cursor.fetchone()
 	if result:
-		EventRecord = namedtuple("EventRecord", "id, name, venue, date, time, capacity")
-		event = EventRecord._make(result)
-		return event
+		venueID = result[0]
+		if isAdmin(user):
+			cursor.execute(
+				"""
+				DELETE FROM events
+				WHERE name = ?
+				AND venue = ?
+				""",
+				(name, venueID)
+			)
+			rows = cursor.rowcount
+			if rows == 1:
+				db.commit()
+				print("Event '" + name + "' at venue '" + venue + "' removed")
+			else:
+				print("Event not found")
+				db.rollback()
+		else:
+			print("You do not have the proper permissions to do that.")
+	else:
+		print("Venue not found")
+
+def findEvent(name, venue):
+	cursor.execute(
+		"""
+		SELECT id
+		FROM venues
+		WHERE name = ?
+		""",
+		(venue,)
+	)
+	result = cursor.fetchone()
+	if result:
+		venueID = result[0]
+		cursor.execute(
+			"""
+			SELECT * 
+			FROM events
+			WHERE name = ?
+			AND venue = ?
+			""",
+			(name, venueID)
+		)
+		result = cursor.fetchone()
+		if result:
+			EventRecord = namedtuple("EventRecord", "id, name, venue, date, time, capacity")
+			event = EventRecord._make(result)
+			return event
+		else:
+			return None
 	else:
 		return None
 

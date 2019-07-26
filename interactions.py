@@ -114,21 +114,56 @@ def addVenue(name, open, close, user):
 def addEvent(name, venue, date, time, capacity):
 	cursor.execute(
 		"""
-		INSERT INTO events(name, venue, date, time, capacity)
-		VALUES(?,?,?,?)
+		SELECT id
+		FROM venues
+		WHERE name = ?
 		""",
-		(name, venue, date, time, capacity)
+		(venue,)
 	)
+	result = cursor.fetchone()
+	if result:
+		venueID = result[0]
+		cursor.execute(
+			"""
+			INSERT INTO events(name, venue, date, time, capacity)
+			VALUES(?,?,?,?,?)
+			""",
+			(name, venueID, date, time, capacity)
+		)
+		db.commit()
+	else:
+		print("Venue not found")
 
 
-def removeEvent(name):
+def removeEvent(name, user):
+	if isAdmin(user):
+		cursor.execute(
+			"""
+			DELETE FROM events
+			WHERE name = ?
+			""",
+			(name,)
+		)
+		db.commit()
+	else:
+		print("You do not have the proper permissions to do that.")
+
+def findEvent(name):
 	cursor.execute(
 		"""
-		DELETE FROM events
+		SELECT * 
+		FROM events
 		WHERE name = ?
 		""",
 		(name,)
 	)
+	result = cursor.fetchone()
+	if result:
+		EventRecord = namedtuple("EventRecord", "id, name, venue, date, time, capacity")
+		event = EventRecord._make(result)
+		return event
+	else:
+		return None
 
 
 def getTimeslotsByVenue(venue, time):
